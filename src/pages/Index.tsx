@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface MeterReading {
   date: string;
@@ -28,7 +29,26 @@ const Index = () => {
     { date: '01.10.2024', coldWater: 125, hotWater: 85 },
     { date: '01.09.2024', coldWater: 118, hotWater: 78 },
     { date: '01.08.2024', coldWater: 112, hotWater: 72 },
+    { date: '01.07.2024', coldWater: 105, hotWater: 68 },
+    { date: '01.06.2024', coldWater: 98, hotWater: 62 },
+    { date: '01.05.2024', coldWater: 92, hotWater: 58 },
   ];
+
+  const consumptionData = meterReadings.map((reading, index) => {
+    const prevReading = meterReadings[index + 1];
+    if (!prevReading) return null;
+    return {
+      month: reading.date.slice(3, 10),
+      coldWater: reading.coldWater - prevReading.coldWater,
+      hotWater: reading.hotWater - prevReading.hotWater,
+      total: (reading.coldWater - prevReading.coldWater) + (reading.hotWater - prevReading.hotWater)
+    };
+  }).filter(Boolean).reverse();
+
+  const expenseData = consumptionData.map(item => ({
+    month: item?.month || '',
+    amount: ((item?.coldWater || 0) * 35 + (item?.hotWater || 0) * 180)
+  }));
 
   const payments: Payment[] = [
     { date: '05.10.2024', amount: 1250, status: 'Оплачено' },
@@ -93,6 +113,14 @@ const Index = () => {
               >
                 <Icon name="User" size={18} />
                 Кабинет
+              </Button>
+              <Button
+                variant={activeTab === 'reports' ? 'default' : 'ghost'}
+                onClick={() => setActiveTab('reports')}
+                className="gap-2"
+              >
+                <Icon name="BarChart3" size={18} />
+                Отчёты
               </Button>
             </nav>
           </div>
@@ -340,6 +368,142 @@ const Index = () => {
                         <div className="flex items-center gap-2">
                           <Icon name="Droplet" className="text-red-500" size={16} />
                           <span>{reading.hotWater} м³</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="space-y-6 animate-fade-in">
+            <h2 className="text-3xl font-bold text-gray-900">Отчёты и статистика</h2>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Icon name="TrendingUp" className="text-primary" size={20} />
+                    Расход воды за 6 месяцев
+                  </CardTitle>
+                  <CardDescription>Динамика потребления холодной и горячей воды</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={consumptionData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis label={{ value: 'м³', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="coldWater" stroke="#3b82f6" name="Холодная вода" strokeWidth={2} />
+                      <Line type="monotone" dataKey="hotWater" stroke="#ef4444" name="Горячая вода" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Icon name="DollarSign" className="text-primary" size={20} />
+                    Расходы за 6 месяцев
+                  </CardTitle>
+                  <CardDescription>Стоимость потреблённой воды по месяцам</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={expenseData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis label={{ value: '₽', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip />
+                      <Bar dataKey="amount" fill="#0ea5e9" name="Сумма" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-gray-600">Среднее потребление</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {(consumptionData.reduce((acc, item) => acc + (item?.coldWater || 0), 0) / consumptionData.length).toFixed(1)} м³
+                      </p>
+                      <p className="text-sm text-gray-500">Холодная вода/месяц</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-600">
+                        {(consumptionData.reduce((acc, item) => acc + (item?.hotWater || 0), 0) / consumptionData.length).toFixed(1)} м³
+                      </p>
+                      <p className="text-sm text-gray-500">Горячая вода/месяц</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-gray-600">Средний платёж</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-primary mb-2">
+                    {(expenseData.reduce((acc, item) => acc + item.amount, 0) / expenseData.length).toFixed(0)} ₽
+                  </p>
+                  <p className="text-sm text-gray-500">За месяц</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-gray-600">Всего за полгода</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-gray-900 mb-2">
+                    {expenseData.reduce((acc, item) => acc + item.amount, 0).toFixed(0)} ₽
+                  </p>
+                  <p className="text-sm text-gray-500">Общая сумма</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon name="FileText" className="text-primary" size={20} />
+                  Детальный отчёт за период
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {consumptionData.slice().reverse().map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium">{item?.month}</p>
+                      </div>
+                      <div className="flex gap-8 text-sm">
+                        <div className="text-center">
+                          <p className="text-blue-600 font-semibold">{item?.coldWater} м³</p>
+                          <p className="text-gray-500 text-xs">холодная</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-red-600 font-semibold">{item?.hotWater} м³</p>
+                          <p className="text-gray-500 text-xs">горячая</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-900 font-bold">
+                            {((item?.coldWater || 0) * 35 + (item?.hotWater || 0) * 180).toFixed(0)} ₽
+                          </p>
+                          <p className="text-gray-500 text-xs">сумма</p>
                         </div>
                       </div>
                     </div>
